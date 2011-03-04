@@ -1,0 +1,11 @@
+cmake_minimum_required(VERSION 2.6.0)
+
+# pull in the pods macros. See cmake/pods.cmake for documentation
+set(POD_NAME microstrain_comm)
+include(cmake/pods.cmake)
+
+# create an executable, and make it public
+add_executable(microstrain_comm src/microstrain_comm.cpp)
+pods_use_pkg_config_packages(microstrain_comm bot2-core fixie_lcmtypes bot2-param-client)
+
+pods_install_executables(microstrain_comm)
