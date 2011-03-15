@@ -39,7 +39,7 @@ typedef struct {
   //input buffer variables
   Byte input_buffer[INPUT_BUFFER_SIZE];
   Byte message_mode;
-  BotSerialCircBuf * read_buffer;
+  BotRingBuf * read_buffer;
   char current_segment;
   int expected_segment_length;
 
@@ -364,10 +364,10 @@ bool handle_message(app_t* app)
 void unpack_packets(app_t * app)
 {
 
-  while (bot_serial_circbuf_available(app->read_buffer) >= app->expected_segment_length) {
+  while (bot_ringbuf_available(app->read_buffer) >= app->expected_segment_length) {
     switch (app->current_segment) {
     case 's':
-      bot_serial_circbuf_peek(app->read_buffer, 1, (char *) &app->message_start_byte);
+      bot_ringbuf_peek(app->read_buffer, 1, (char *) &app->message_start_byte);
 
       if (app->verbose)
         fprintf(stderr, "received message start byte: id=%d\n", app->message_start_byte);
@@ -389,12 +389,12 @@ void unpack_packets(app_t * app)
           fprintf(stderr, "no match for message start byte %d\n", app->message_start_byte);
         }
         //read a byte and continue if we don't have a match
-        bot_serial_circbuf_read(app->read_buffer, 1, (char *) &app->message_start_byte);
+        bot_ringbuf_read(app->read_buffer, 1, (char *) &app->message_start_byte);
         app->current_segment = 's';
       }
       break;
     case 'p':
-      bot_serial_circbuf_read(app->read_buffer, app->expected_segment_length, (char *) app->input_buffer);
+      bot_ringbuf_read(app->read_buffer, app->expected_segment_length, (char *) app->input_buffer);
       unsigned short transmitted_cksum = make16UnsignedInt(&app->input_buffer[app->expected_segment_length - 2],
           app->little_endian);
       unsigned short computed_cksum = cksum(app->input_buffer, app->expected_segment_length);
@@ -454,7 +454,7 @@ static gboolean serial_read_handler(GIOChannel * source, GIOCondition condition,
   }
 
   if (num_read > 0) {
-    bot_serial_circbuf_write(app->read_buffer, num_read, middle_buffer);
+    bot_ringbuf_write(app->read_buffer, num_read, middle_buffer);
   }
 
   unpack_packets(app);
@@ -535,7 +535,7 @@ int main(int argc, char **argv)
   app->utime_prev = bot_timestamp_now();
   //  app->param = bot_param_new_from_server(app->lcm, 1);
 
-  app->read_buffer = bot_serial_circbuf_create(INPUT_BUFFER_SIZE);
+  app->read_buffer = bot_ringbuf_create(INPUT_BUFFER_SIZE);
 
   char comm_port_name[255];
   if (auto_comm)
