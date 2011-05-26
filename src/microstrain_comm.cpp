@@ -13,7 +13,7 @@
 #include <bot_core/bot_core.h>
 #include <bot_param/param_client.h>
 #include <lcm/lcm.h>
-#include <lcmtypes/fixie_ins_t.h>
+#include <lcmtypes/microstrain_ins_t.h>
 
 #include <getopt.h>
 #define ACC_ANG_MAG 0xCB
@@ -297,7 +297,7 @@ unsigned short cksum(const Byte * packet_bytes, int packet_length)
 bool handle_message(app_t* app)
 {
 
-  fixie_ins_t ins_message;
+  microstrain_ins_t ins_message;
   memset(&ins_message, 0, sizeof(ins_message));
   int ins_timer;
   float vals[9];
@@ -344,7 +344,7 @@ bool handle_message(app_t* app)
       //      ins_message.quat[0] = ins_message.quat[1] = ins_message.quat[2] = ins_message.quat[3] = ins_message.pressure
       //          = ins_message.rel_alt = 0;
       ins_message.utime = bot_timestamp_now();
-      fixie_ins_t_publish(app->lcm, "MICROSTRAIN_INS", &ins_message);
+      microstrain_ins_t_publish(app->lcm, "MICROSTRAIN_INS", &ins_message);
       break;
     }
   case CONTINUOUS_MODE_COMMAND:
