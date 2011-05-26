@@ -307,18 +307,26 @@ bool handle_message(app_t* app)
     print_array_char_hex((unsigned char *) app->input_buffer, app->message_size);
   }
 
+  bool got_quat = false;
   int success = 0;
   switch (app->message_start_byte) {
   case ACC_ANG_MAG_ROT:
     {
+      if (app->message_mode != ACC_ANG_MAG_ROT && !app->quiet)
+        printf("error, received ACC_ANG_MAG_ROT instead of ACC_ANG_MAG\n");
+
       double rot[9];
       unpack32BitFloats(vals, &app->input_buffer[37], 9, app->little_endian);
       convertFloatToDouble(rot, vals, 9);
       bot_matrix_to_quat(rot, ins_message.quat);
+      got_quat = true;
       //fall into standard ins message handling
     }
   case ACC_ANG_MAG:
     {
+      if (app->message_mode == ACC_ANG_MAG_ROT && !got_quat && !app->quiet)
+        printf("error, received ACC_ANG_MAG instead of ACC_ANG_MAG_ROT (no quat received)\n");
+
       //get the data we care about
       unpack32BitFloats(vals, &app->input_buffer[1], 3, app->little_endian);
       convertFloatToDouble(ins_message.accel, vals, 3);
