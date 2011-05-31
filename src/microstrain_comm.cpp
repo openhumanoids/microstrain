@@ -19,6 +19,9 @@
 #define ACC_ANG_MAG 0xCB
 #define LENGTH_ACC_ANG_MAG 43
 
+#define DANG_DVEL_MAG 0xD3
+#define LENGTH_DANG_DVEL_MAG 43
+
 #define ACC_ANG_MAG_ROT 0xCC
 #define LENGTH_ACC_ANG_MAG_ROT 79
 
@@ -340,9 +343,31 @@ bool handle_message(app_t* app)
       //ins internal timer, currently not used
       ins_timer = make32UnsignedInt(&app->input_buffer[37], app->little_endian);
 
-      //set unused message vals to 0
-      //      ins_message.quat[0] = ins_message.quat[1] = ins_message.quat[2] = ins_message.quat[3] = ins_message.pressure
-      //          = ins_message.rel_alt = 0;
+      ins_message.device_time = ((double) ins_timer) / 62500.0;
+      ins_message.utime = bot_timestamp_now();
+      microstrain_ins_t_publish(app->lcm, "MICROSTRAIN_INS", &ins_message);
+      break;
+    }
+
+  case DANG_DVEL_MAG:
+    {
+      if (app->message_mode != DANG_DVEL_MAG && !app->quiet)
+        printf("error: received unexpecte DANG_DVEL_MAG message\n");
+
+      //get the data we care about
+      unpack32BitFloats(vals, &app->input_buffer[1], 3, app->little_endian);
+      convertFloatToDouble(ins_message.gyro, vals, 3);
+
+      unpack32BitFloats(vals, &app->input_buffer[13], 3, app->little_endian);
+      convertFloatToDouble(ins_message.accel, vals, 3);
+
+      unpack32BitFloats(vals, &app->input_buffer[25], 3, app->little_endian);
+      convertFloatToDouble(ins_message.mag, vals, 3);
+
+      //ins internal timer, currently not used
+      ins_timer = make32UnsignedInt(&app->input_buffer[37], app->little_endian);
+
+      ins_message.device_time = ((double) ins_timer) / 62500.0;
       ins_message.utime = bot_timestamp_now();
       microstrain_ins_t_publish(app->lcm, "MICROSTRAIN_INS", &ins_message);
       break;
@@ -387,6 +412,9 @@ void unpack_packets(app_t * app)
         break;
       case ACC_ANG_MAG_ROT:
         app->expected_segment_length = LENGTH_ACC_ANG_MAG_ROT;
+        break;
+      case DANG_DVEL_MAG:
+        app->expected_segment_length = LENGTH_DANG_DVEL_MAG;
         break;
       case CONTINUOUS_MODE_COMMAND:
         app->expected_segment_length = LENGTH_CONTINUOUS_MODE_ECHO;
@@ -472,16 +500,18 @@ static gboolean serial_read_handler(GIOChannel * source, GIOCondition condition,
 static void usage(const char *progname)
 {
   char *basename = g_path_get_basename(progname);
-  printf("Usage: %s [options]\n"
-    "\n"
-    "Options:\n"
-    "\n"
-    "    -h, --help                Shows this help text and exits\n"
-    "    -v, --verbose\n"
-    "    -q, --quiet\n"
-    "    -c, --comm                specify comm port manuall (default will try to find attached microstrain)\n"
-    "    -r, --quat                publish quaternion as well (will use more comm bandwidth)\n"
-    "\n", basename);
+  printf(
+      "Usage: %s [options]\n"
+        "\n"
+        "Options:\n"
+        "\n"
+        "    -h, --help                Shows this help text and exits\n"
+        "    -v, --verbose\n"
+        "    -q, --quiet\n"
+        "    -c, --comm                specify comm port manuall (default will try to find attached microstrain)\n"
+        "    -r, --quat                publish quaternion as well (will use more comm bandwidth)\n"
+        "    -d, --delta               publish delta angle and delta velocity vectors instead of acceleration and angular rate\n"
+        "\n", basename);
   free(basename);
   exit(1);
 }
@@ -501,12 +531,15 @@ int main(int argc, char **argv)
 
   char user_comm_port_name[60];
 
-  const char *optstring = "hvqc:r";
+  const char *optstring = "hvqc:rd";
 
-  struct option long_opts[] = { { "help", no_argument, 0, 'h' }, { "verbose", no_argument, 0, 'v' }, { "quiet",
-      no_argument,
-      0,
-      'q' }, { "comm", required_argument, 0, 'c' }, { "quat", no_argument, 0, 'r' }, { 0, 0, 0, 0 } };
+  struct option long_opts[] = { { "help", no_argument, 0, 'h' },
+      { "verbose", no_argument, 0, 'v' },
+      { "quiet", no_argument, 0, 'q' },
+      { "comm", required_argument, 0, 'c' },
+      { "quat", no_argument, 0, 'r' },
+      { "delta", no_argument, 0, 'd' },
+      { 0, 0, 0, 0 } };
 
   int c;
   while ((c = getopt_long(argc, argv, optstring, long_opts, 0)) >= 0) {
@@ -526,6 +559,9 @@ int main(int argc, char **argv)
       break;
     case 'r':
       app->message_mode = ACC_ANG_MAG_ROT;
+      break;
+    case 'd':
+      app->message_mode = DANG_DVEL_MAG;
       break;
     default:
       usage(argv[0]);

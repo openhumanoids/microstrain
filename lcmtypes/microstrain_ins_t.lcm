@@ -10,5 +10,6 @@ struct ins_t
 	double pressure;
 	double rel_alt;
 	
+	double device_time;
 	int64_t utime;
 }
