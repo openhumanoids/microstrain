@@ -28,6 +28,8 @@
 #define CONTINUOUS_MODE_COMMAND 0xC4
 #define LENGTH_CONTINUOUS_MODE_ECHO 8
 
+#define DELTA_ANG_VEL_DT 0.01
+
 typedef unsigned char Byte;
 using namespace std;
 
@@ -357,9 +359,11 @@ bool handle_message(app_t* app)
       //get the data we care about
       unpack32BitFloats(vals, &app->input_buffer[1], 3, app->little_endian);
       convertFloatToDouble(ins_message.gyro, vals, 3);
+      bot_vector_scale_3d(ins_message.gyro, 1 / DELTA_ANG_VEL_DT);
 
       unpack32BitFloats(vals, &app->input_buffer[13], 3, app->little_endian);
       convertFloatToDouble(ins_message.accel, vals, 3);
+      bot_vector_scale_3d(ins_message.accel, 1 / DELTA_ANG_VEL_DT);
 
       unpack32BitFloats(vals, &app->input_buffer[25], 3, app->little_endian);
       convertFloatToDouble(ins_message.mag, vals, 3);
@@ -500,18 +504,17 @@ static gboolean serial_read_handler(GIOChannel * source, GIOCondition condition,
 static void usage(const char *progname)
 {
   char *basename = g_path_get_basename(progname);
-  printf(
-      "Usage: %s [options]\n"
-        "\n"
-        "Options:\n"
-        "\n"
-        "    -h, --help                Shows this help text and exits\n"
-        "    -v, --verbose\n"
-        "    -q, --quiet\n"
-        "    -c, --comm                specify comm port manuall (default will try to find attached microstrain)\n"
-        "    -r, --quat                publish quaternion as well (will use more comm bandwidth)\n"
-        "    -d, --delta               publish delta angle and delta velocity vectors instead of acceleration and angular rate\n"
-        "\n", basename);
+  printf("Usage: %s [options]\n"
+    "\n"
+    "Options:\n"
+    "\n"
+    "    -h, --help                Shows this help text and exits\n"
+    "    -v, --verbose\n"
+    "    -q, --quiet\n"
+    "    -c, --comm                specify comm port manuall (default will try to find attached microstrain)\n"
+    "    -r, --quat                publish quaternion as well (will use more comm bandwidth)\n"
+    "    -d, --delta               publish delta angle and delta velocity vectors normalized by dt: %f\n"
+    "\n", basename, DELTA_ANG_VEL_DT);
   free(basename);
   exit(1);
 }
