@@ -516,7 +516,7 @@ static void usage(const char *progname)
     "    -v, --verbose\n"
     "    -q, --quiet\n"
     "    -c, --comm                specify comm port manuall (default will try to find attached microstrain)\n"
-    "    -r, --quat                publish quaternion as well (will use more comm bandwidth)\n"
+    "    -r, --quat                publish quaternion as well (will use more comm bandwidth) (choose EITHER -r OR -d, device doesn't support both)\n"
     "    -d, --no_delta            don't publish delta angle and delta velocity vectors normalized by dt: %f\n"
     "\n", basename, DELTA_ANG_VEL_DT);
   free(basename);
