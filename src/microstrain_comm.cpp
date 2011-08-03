@@ -597,7 +597,11 @@ int main(int argc, char **argv)
 
   char set_mode_string[] = { 0xC4, 0xC1, 0x29, app->message_mode };
   cout << "setting continuous mode\n";
-  write(app->comm, set_mode_string, 4);
+  int written = write(app->comm, set_mode_string, 4);
+  if (written!=4){
+    printf("Error writing command to set continuous mode");
+    exit(1);
+  }
 
   app->current_segment = 's';
   app->expected_segment_length = 1;
