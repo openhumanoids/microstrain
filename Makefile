@@ -1,4 +1,4 @@
-# Default makefile distributed with pods version: 11.02.09
+# Default makefile distributed with pods version: 11.03.11
 
 default_target: all
 
@@ -11,7 +11,7 @@ $(VERBOSE).SILENT:
 #   If not, search up to four parent directories for a 'build' directory.
 #   Otherwise, use ./build.
 ifeq "$(BUILD_PREFIX)" ""
-BUILD_PREFIX:=$(shell for pfx in .. ../.. ../../.. ../../../..; do d=`pwd`/$$pfx/build;\
+BUILD_PREFIX:=$(shell for pfx in ./ .. ../.. ../../.. ../../../..; do d=`pwd`/$$pfx/build;\
                if [ -d $$d ]; then echo $$d; exit 0; fi; done; echo `pwd`/build)
 endif
 # create the build directory if needed, and normalize its path name
@@ -43,3 +43,7 @@ configure:
 clean:
 	-if [ -e pod-build/install_manifest.txt ]; then rm -f `cat pod-build/install_manifest.txt`; fi
 	-if [ -d pod-build ]; then $(MAKE) -C pod-build clean; rm -rf pod-build; fi
+
+# other (custom) targets are passed through to the cmake-generated Makefile 
+%::
+	$(MAKE) -C pod-build $@

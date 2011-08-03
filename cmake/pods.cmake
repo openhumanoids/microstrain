@@ -26,7 +26,7 @@
 #
 # ----
 # File: pods.cmake
-# Distributed with pods version: 11.02.09
+# Distributed with pods version: 11.03.11
 
 # pods_install_headers(<header1.h> ... DESTINATION <subdir_name>)
 # 
@@ -134,21 +134,23 @@ function(pods_install_pkg_config_file)
         "Description: ${pc_description}\n"
         "Requires: ${pc_requires}\n"
         "Version: ${pc_version}\n"
-        "Libs: -L\${exec_prefix}/lib ${pc_libs}\n"
-        "Cflags: ${pc_cflags}\n")
+        "Libs: -L\${libdir} ${pc_libs}\n"
+        "Cflags: -I\${includedir} ${pc_cflags}\n")
 
     # mark the .pc file for installation to the lib/pkgconfig directory
     install(FILES ${pc_fname} DESTINATION lib/pkgconfig)
     
     # find targets that this pkg-config file depends on
-    string(REPLACE " " ";" split_lib ${pc_libs})
-    foreach(lib ${split_lib})
-        string(REGEX REPLACE "^-l" "" libname ${lib})
-        get_target_property(IS_TARGET ${libname} LOCATION)
-        if (NOT IS_TARGET STREQUAL "IS_TARGET-NOTFOUND")
-            set_property(GLOBAL APPEND PROPERTY "PODS_PKG_CONFIG_TARGETS-${pc_name}" ${libname})
-        endif() 
-    endforeach()
+    if (pc_libs)
+        string(REPLACE " " ";" split_lib ${pc_libs})
+        foreach(lib ${split_lib})
+            string(REGEX REPLACE "^-l" "" libname ${lib})
+            get_target_property(IS_TARGET ${libname} LOCATION)
+            if (NOT IS_TARGET STREQUAL "IS_TARGET-NOTFOUND")
+                set_property(GLOBAL APPEND PROPERTY "PODS_PKG_CONFIG_TARGETS-${pc_name}" ${libname})
+            endif() 
+        endforeach()
+    endif()
     
 endfunction(pods_install_pkg_config_file)
 
@@ -310,8 +312,9 @@ macro(pods_config_search_paths)
         include_directories(${INCLUDE_INSTALL_PATH})
 
         # add build/lib to the link path
-        link_directories(${LIBRARY_INSTALL_PATH})
         link_directories(${LIBRARY_OUTPUT_PATH})
+        link_directories(${LIBRARY_INSTALL_PATH})
+        
 
         # abuse RPATH
         if(${CMAKE_INSTALL_RPATH})

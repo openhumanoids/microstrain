@@ -67,7 +67,7 @@
 #
 # ----
 # File: lcmtypes.cmake
-# Distributed with pods version: 11.02.09
+# Distributed with pods version: 11.03.11
 
 cmake_minimum_required(VERSION 2.6.0)
 
@@ -99,7 +99,7 @@ macro(lcmtypes_get_types msgvar)
 endmacro()
 
 function(lcmgen)
-    execute_process(COMMAND lcm-gen ${ARGV} RESULT_VARIABLE lcmgen_result)
+    execute_process(COMMAND ${LCM_GEN_EXECUTABLE} ${ARGV} RESULT_VARIABLE lcmgen_result)
     if(NOT lcmgen_result EQUAL 0)
         message(FATAL_ERROR "lcm-gen failed")
     endif()
@@ -157,7 +157,7 @@ function(lcmtypes_build_c)
     # run lcm-gen at compile time
     add_custom_target(lcmgen_c ALL 
         COMMAND sh -c '[ -d ${_lcmtypes_c_dir} ] || mkdir -p ${_lcmtypes_c_dir}'
-        COMMAND sh -c 'lcm-gen --lazy -c ${_lcmtypes} --c-cpath ${_lcmtypes_c_dir} --c-hpath ${_lcmtypes_c_dir}')
+        COMMAND sh -c '${LCM_GEN_EXECUTABLE} --lazy -c ${_lcmtypes} --c-cpath ${_lcmtypes_c_dir} --c-hpath ${_lcmtypes_c_dir}')
 
     # get a list of all generated .c and .h files
     file(GLOB _lcmtypes_c_files ${_lcmtypes_c_dir}/*.c)
@@ -227,7 +227,9 @@ function(lcmtypes_build_c)
         "Description: LCM types for ${PROJECT_NAME}\n"
         "Version: 0.0.0\n"
         "Requires: lcm\n"
-        "Libs: -L\${exec_prefix}/lib -l${libname}\n")
+        "Libs: -L\${exec_prefix}/lib -l${libname}\n"
+        "Cflags: -I\${includedir}\n"
+        )
 
     # mark the pkg-config file for installation to the lib/pkgconfig directory
     install(FILES ${pc_fname} DESTINATION lib/pkgconfig)
@@ -242,12 +244,22 @@ function(lcmtypes_build_java)
         return()
     endif()
 
+    # do we have Java?
     find_package(Java)
     if(JAVA_COMPILE STREQUAL JAVA_COMPILE-NOTFOUND OR
        JAVA_ARCHIVE STREQUAL JAVA_ARCHIVE-NOTFOUND)
         message(STATUS "Not building Java LCM type bindings (Can't find Java)")
         return()
     endif()
+
+    # do we have LCM java bindings?  where is lcm.jar?
+    execute_process(COMMAND pkg-config --variable=classpath lcm-java OUTPUT_VARIABLE LCM_JAR_FILE)
+    if(NOT LCM_JAR_FILE)
+        message(STATUS "Not building Java LCM type bindings (Can't find lcm.jar)")
+        return()
+    endif()
+    string(STRIP ${LCM_JAR_FILE} LCM_JAR_FILE)
+    set(LCMTYPES_JAR ${CMAKE_CURRENT_BINARY_DIR}/lcmtypes_${PROJECT_NAME}.jar)
 
     # generate Java bindings for LCM types
     set(_lcmtypes_java_dir ${PROJECT_SOURCE_DIR}/lcmtypes/java)
@@ -278,7 +290,7 @@ function(lcmtypes_build_java)
     # run lcm-gen at compile time
     add_custom_target(lcmgen_java ALL
         COMMAND sh -c '[ -d ${_lcmtypes_java_dir} ] || mkdir -p ${_lcmtypes_java_dir}'
-        COMMAND sh -c 'lcm-gen --lazy -j ${_lcmtypes} --jpath ${_lcmtypes_java_dir}')
+        COMMAND sh -c '${LCM_GEN_EXECUTABLE} --lazy -j ${_lcmtypes} --jpath ${_lcmtypes_java_dir}')
 
     if(NOT auto_manage_files)
         return()
@@ -286,11 +298,6 @@ function(lcmtypes_build_java)
 
     # get a list of all generated .java files
     file(GLOB_RECURSE _lcmtypes_java_files ${_lcmtypes_java_dir}/*.java)
-
-    # where is lcm.jar?
-    execute_process(COMMAND pkg-config --variable=classpath lcm-java OUTPUT_VARIABLE LCM_JAR_FILE)
-    string(STRIP ${LCM_JAR_FILE} LCM_JAR_FILE)
-    set(LCMTYPES_JAR ${CMAKE_CURRENT_BINARY_DIR}/lcmtypes_${PROJECT_NAME}.jar)
 
     set(java_classpath ${_lcmtypes_java_dir}:${LCM_JAR_FILE})
 
@@ -367,11 +374,11 @@ function(lcmtypes_build_python)
 
     # generate Python bindings for LCM types
     execute_process(COMMAND mkdir -p ${_lcmtypes_python_dir})
-    execute_process(COMMAND lcm-gen --lazy -p ${_lcmtypes} --ppath ${_lcmtypes_python_dir})
+    execute_process(COMMAND ${LCM_GEN_EXECUTABLE} --lazy -p ${_lcmtypes} --ppath ${_lcmtypes_python_dir})
 
     # run lcm-gen at compile time
     add_custom_target(lcmgen_python ALL
-        COMMAND sh -c 'lcm-gen --lazy -p ${_lcmtypes} --ppath ${_lcmtypes_python_dir}')
+        COMMAND sh -c '${LCM_GEN_EXECUTABLE} --lazy -p ${_lcmtypes} --ppath ${_lcmtypes_python_dir}')
 
     if(NOT auto_manage_files)
         return()
@@ -411,6 +418,14 @@ endfunction()
 macro(lcmtypes_build)
     find_package(PkgConfig REQUIRED)
     pkg_check_modules(LCM REQUIRED lcm)
+    
+    #find lcm-gen (it may be in the install path)
+    find_program(LCM_GEN_EXECUTABLE lcm-gen ${EXECUTABLE_OUTPUT_PATH} ${EXECUTABLE_INSTALL_PATH})
+    if (NOT LCM_GEN_EXECUTABLE)
+    	message(FATAL_ERROR "lcm-gen not found!\n")
+    	return()
+    endif()
+    
     lcmtypes_build_c(${ARGV})
     include_directories(${LCMTYPES_INCLUDE_DIRS})
 
