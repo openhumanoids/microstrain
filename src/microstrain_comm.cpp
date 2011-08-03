@@ -30,6 +30,8 @@
 
 #define DELTA_ANG_VEL_DT 0.01
 
+#define GRAVITY 9.80665
+
 typedef unsigned char Byte;
 using namespace std;
 
@@ -335,6 +337,7 @@ bool handle_message(app_t* app)
       //get the data we care about
       unpack32BitFloats(vals, &app->input_buffer[1], 3, app->little_endian);
       convertFloatToDouble(ins_message.accel, vals, 3);
+      bot_vector_scale_3d(ins_message.accel, GRAVITY);
 
       unpack32BitFloats(vals, &app->input_buffer[13], 3, app->little_endian);
       convertFloatToDouble(ins_message.gyro, vals, 3);
@@ -364,6 +367,7 @@ bool handle_message(app_t* app)
       unpack32BitFloats(vals, &app->input_buffer[13], 3, app->little_endian);
       convertFloatToDouble(ins_message.accel, vals, 3);
       bot_vector_scale_3d(ins_message.accel, 1 / DELTA_ANG_VEL_DT);
+      bot_vector_scale_3d(ins_message.accel, GRAVITY);
 
       unpack32BitFloats(vals, &app->input_buffer[25], 3, app->little_endian);
       convertFloatToDouble(ins_message.mag, vals, 3);
@@ -513,7 +517,7 @@ static void usage(const char *progname)
     "    -q, --quiet\n"
     "    -c, --comm                specify comm port manuall (default will try to find attached microstrain)\n"
     "    -r, --quat                publish quaternion as well (will use more comm bandwidth)\n"
-    "    -d, --delta               publish delta angle and delta velocity vectors normalized by dt: %f\n"
+    "    -d, --no_delta            don't publish delta angle and delta velocity vectors normalized by dt: %f\n"
     "\n", basename, DELTA_ANG_VEL_DT);
   free(basename);
   exit(1);
@@ -528,7 +532,7 @@ int main(int argc, char **argv)
   //default settings
   app->verbose = 0;
   app->quiet = 0;
-  app->message_mode = ACC_ANG_MAG;
+  app->message_mode = DANG_DVEL_MAG;
 
   bool auto_comm = true;
 
@@ -541,7 +545,7 @@ int main(int argc, char **argv)
       { "quiet", no_argument, 0, 'q' },
       { "comm", required_argument, 0, 'c' },
       { "quat", no_argument, 0, 'r' },
-      { "delta", no_argument, 0, 'd' },
+      { "no_delta", no_argument, 0, 'd' },
       { 0, 0, 0, 0 } };
 
   int c;
@@ -564,7 +568,7 @@ int main(int argc, char **argv)
       app->message_mode = ACC_ANG_MAG_ROT;
       break;
     case 'd':
-      app->message_mode = DANG_DVEL_MAG;
+      app->message_mode = ACC_ANG_MAG;
       break;
     default:
       usage(argv[0]);
