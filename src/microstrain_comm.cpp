@@ -160,32 +160,32 @@ bool scandev(char * comm_port_name)
 {
 
   FILE *instream;
-  char devnames[255][255];//allows for up to 256 devices with path links up to 255 characters long each
+  char devnames[255][255]; //allows for up to 256 devices with path links up to 255 characters long each
   int devct = 0; //counter for number of devices
   int i = 0;
   int j = 0;
   int userchoice = 0;
 
-  char command[] = "find /dev/serial -print | grep -i microstrain";//search /dev/serial for microstrain devices
+  char command[] = "find /dev/serial -print | grep -i microstrain"; //search /dev/serial for microstrain devices
 
   printf("Searching for devices...\n");
 
-  instream = popen(command, "r");//execute piped command in read mode
+  instream = popen(command, "r"); //execute piped command in read mode
 
-  if (!instream) {//SOMETHING WRONG WITH THE SYSTEM COMMAND PIPE...EXITING
+  if (!instream) { //SOMETHING WRONG WITH THE SYSTEM COMMAND PIPE...EXITING
     printf("ERROR BROKEN PIPELINE %s\n", command);
     return false;
   }
 
-  for (i = 0; i < 255 && (fgets(devnames[i], sizeof(devnames[i]), instream)); i++) {//load char array of device addresses
+  for (i = 0; i < 255 && (fgets(devnames[i], sizeof(devnames[i]), instream)); i++) { //load char array of device addresses
     ++devct;
   }
 
   for (i = 0; i < devct; i++) {
     for (j = 0; j < sizeof(devnames[i]); j++) {
       if (devnames[i][j] == '\n') {
-        devnames[i][j] = '\0';//replaces newline inserted by pipe reader with char array terminator character
-        break;//breaks loop after replacement
+        devnames[i][j] = '\0'; //replaces newline inserted by pipe reader with char array terminator character
+        break; //breaks loop after replacement
       }
     }
     printf("Device Found:\n%d: %s\n", i, devnames[i]);
@@ -197,9 +197,9 @@ bool scandev(char * comm_port_name)
     printf("Number of devices = %d\n", devct);
     if (devct > 1) {
       printf("Please choose the number of the device to connect to (0 to %i):\n", devct - 1);
-      while (scanf("%i", &userchoice) == 0 || userchoice < 0 || userchoice > devct - 1) {//check that there's input and in the correct range
+      while (scanf("%i", &userchoice) == 0 || userchoice < 0 || userchoice > devct - 1) { //check that there's input and in the correct range
         printf("Invalid choice...Please choose again between 0 and %d:\n", devct - 1);
-        getchar();//clear carriage return from keyboard buffer after invalid choice
+        getchar(); //clear carriage return from keyboard buffer after invalid choice
       }
     }
     strcpy(comm_port_name, devnames[userchoice]);
@@ -508,17 +508,18 @@ static gboolean serial_read_handler(GIOChannel * source, GIOCondition condition,
 static void usage(const char *progname)
 {
   char *basename = g_path_get_basename(progname);
-  printf("Usage: %s [options]\n"
-    "\n"
-    "Options:\n"
-    "\n"
-    "    -h, --help                Shows this help text and exits\n"
-    "    -v, --verbose\n"
-    "    -q, --quiet\n"
-    "    -c, --comm                specify comm port manuall (default will try to find attached microstrain)\n"
-    "    -r, --quat                publish quaternion as well (will use more comm bandwidth) (choose EITHER -r OR -d, device doesn't support both)\n"
-    "    -d, --no_delta            don't publish delta angle and delta velocity vectors normalized by dt: %f\n"
-    "\n", basename, DELTA_ANG_VEL_DT);
+  printf(
+      "Usage: %s [options]\n"
+          "\n"
+          "Options:\n"
+          "\n"
+          "    -h, --help                Shows this help text and exits\n"
+          "    -v, --verbose\n"
+          "    -q, --quiet\n"
+          "    -c, --comm                specify comm port manuall (default will try to find attached microstrain)\n"
+          "    -r, --quat                publish quaternion as well (will use more comm bandwidth) (choose EITHER -r OR -d, device doesn't support both)\n"
+          "    -d, --no_delta            don't publish delta angle and delta velocity vectors normalized by dt: %f\n"
+          "\n", basename, DELTA_ANG_VEL_DT);
   free(basename);
   exit(1);
 }
@@ -576,6 +577,9 @@ int main(int argc, char **argv)
     }
   }
 
+  if (!app->quiet)
+    fprintf(stderr, "Little endian = %d\n", (int) app->little_endian);
+
   if (optind < argc - 1) {
     usage(argv[0]);
   }
@@ -602,7 +606,7 @@ int main(int argc, char **argv)
   char set_mode_string[] = { 0xC4, 0xC1, 0x29, app->message_mode };
   cout << "setting continuous mode\n";
   int written = write(app->comm, set_mode_string, 4);
-  if (written!=4){
+  if (written != 4) {
     printf("Error writing command to set continuous mode");
     exit(1);
   }
