@@ -64,6 +64,9 @@ typedef struct {
 
   lcm_t * lcm;
 
+  bot_timestamp_sync_state * sync;
+  bool do_sync;
+
 } app_t;
 
 bool systemLittleEndianCheck()
@@ -307,6 +310,8 @@ bool handle_message(app_t* app)
   microstrain_ins_t ins_message;
   memset(&ins_message, 0, sizeof(ins_message));
   int ins_timer;
+  int64_t utime = bot_timestamp_now();
+
   float vals[9];
 
   if (app->verbose) {
@@ -349,7 +354,14 @@ bool handle_message(app_t* app)
       ins_timer = make32UnsignedInt(&app->input_buffer[37], app->little_endian);
 
       ins_message.device_time = ((double) ins_timer) / 62500.0;
-      ins_message.utime = bot_timestamp_now();
+
+      if (app->do_sync) {
+        ins_message.utime = bot_timestamp_sync(app->sync, ins_timer, utime);
+      }
+      else {
+        ins_message.utime = utime;
+      }
+
       microstrain_ins_t_publish(app->lcm, "MICROSTRAIN_INS", &ins_message);
       break;
     }
@@ -376,7 +388,13 @@ bool handle_message(app_t* app)
       ins_timer = make32UnsignedInt(&app->input_buffer[37], app->little_endian);
 
       ins_message.device_time = ((double) ins_timer) / 62500.0;
-      ins_message.utime = bot_timestamp_now();
+
+      if (app->do_sync) {
+        ins_message.utime = bot_timestamp_sync(app->sync, ins_timer, utime);
+      }
+      else {
+        ins_message.utime = utime;
+      }
       microstrain_ins_t_publish(app->lcm, "MICROSTRAIN_INS", &ins_message);
       break;
     }
@@ -519,6 +537,7 @@ static void usage(const char *progname)
           "    -c, --comm                specify comm port manuall (default will try to find attached microstrain)\n"
           "    -r, --quat                publish quaternion as well (will use more comm bandwidth) (choose EITHER -r OR -d, device doesn't support both)\n"
           "    -d, --no_delta            don't publish delta angle and delta velocity vectors normalized by dt: %f\n"
+          "    -n, --no_sync             use raw timestamp, don't try to sync with device\n"
           "\n", basename, DELTA_ANG_VEL_DT);
   free(basename);
   exit(1);
@@ -534,12 +553,13 @@ int main(int argc, char **argv)
   app->verbose = 0;
   app->quiet = 0;
   app->message_mode = DANG_DVEL_MAG;
+  app->do_sync = true;
 
   bool auto_comm = true;
 
   char user_comm_port_name[60];
 
-  const char *optstring = "hvqc:rd";
+  const char *optstring = "hvqc:rdn";
 
   struct option long_opts[] = { { "help", no_argument, 0, 'h' },
       { "verbose", no_argument, 0, 'v' },
@@ -571,6 +591,9 @@ int main(int argc, char **argv)
     case 'd':
       app->message_mode = ACC_ANG_MAG;
       break;
+    case 'n':
+      app->do_sync = false;
+      break;
     default:
       usage(argv[0]);
       break;
@@ -587,6 +610,7 @@ int main(int argc, char **argv)
   GMainLoop * mainloop = g_main_loop_new(NULL, FALSE);
   app->lcm = bot_lcm_get_global(NULL);
   app->utime_prev = bot_timestamp_now();
+  app->sync = bot_timestamp_sync_init(62500, 68719 * 62500, 1.001);
   //  app->param = bot_param_new_from_server(app->lcm, 1);
 
   app->read_buffer = bot_ringbuf_create(INPUT_BUFFER_SIZE);
