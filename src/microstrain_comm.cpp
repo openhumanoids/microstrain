@@ -387,7 +387,7 @@ bool handle_message(app_t* app)
       //ins internal timer, currently not used
       ins_timer = make32UnsignedInt(&app->input_buffer[37], app->little_endian);
 
-      ins_message.device_time = ((double) ins_timer) / 62500.0;
+      ins_message.device_time = ins_timer * 16; // 1e6 / 62500.0;
 
       if (app->do_sync) {
         ins_message.utime = bot_timestamp_sync(app->sync, ins_timer, utime);

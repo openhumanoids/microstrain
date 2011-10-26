@@ -2,6 +2,9 @@ package microstrain;
 
 struct ins_t
 {
+	int64_t utime;
+	int64_t device_time;
+
 	double gyro[3];
 	double mag[3];
 	double accel[3];
@@ -9,7 +12,4 @@ struct ins_t
 	
 	double pressure;
 	double rel_alt;
-	
-	double device_time;
-	int64_t utime;
 }
