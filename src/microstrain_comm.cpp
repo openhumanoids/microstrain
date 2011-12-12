@@ -19,6 +19,9 @@
 #define ACC_ANG_MAG 0xCB
 #define LENGTH_ACC_ANG_MAG 43
 
+#define ACC_STAB (0xD2)
+#define LENGTH_ACC_STAB (43)
+
 #define DANG_DVEL_MAG 0xD3
 #define LENGTH_DANG_DVEL_MAG 43
 
@@ -330,7 +333,16 @@ bool handle_message(app_t* app)
       double rot[9];
       unpack32BitFloats(vals, &app->input_buffer[37], 9, app->little_endian);
       convertFloatToDouble(rot, vals, 9);
-      bot_matrix_to_quat(rot, ins_message.quat);
+
+      // This libbot2 function is faulty:
+      // bot_matrix_to_quat(rot, ins_message.quat);
+      // Workaround (from mfallon, oct2011)
+      double ms_rpy[] = {0,0,0}; 
+      ms_rpy[0] = atan2( rot[5] , rot[8]); // roll
+      ms_rpy[1] = asin(-rot[2]); // pitch
+      ms_rpy[2] = atan2( rot[1] , rot[0]); // yaw      
+      bot_roll_pitch_yaw_to_quat(ms_rpy,ins_message.quat );
+
       got_quat = true;
       //fall into standard ins message handling
     }
@@ -366,10 +378,41 @@ bool handle_message(app_t* app)
       break;
     }
 
+  case ACC_STAB:
+    {
+      if (app->message_mode != ACC_STAB && !app->quiet)
+        printf("error: received unexpected ACC_STAB message\n");
+
+      //get the data we care about
+      unpack32BitFloats(vals, &app->input_buffer[1], 3, app->little_endian);
+      convertFloatToDouble(ins_message.accel, vals, 3);
+      bot_vector_scale_3d(ins_message.accel, GRAVITY);
+
+      unpack32BitFloats(vals, &app->input_buffer[13], 3, app->little_endian);
+      convertFloatToDouble(ins_message.gyro, vals, 3);
+
+      unpack32BitFloats(vals, &app->input_buffer[25], 3, app->little_endian);
+      convertFloatToDouble(ins_message.mag, vals, 3);
+
+      //ins internal timer, currently not used
+      ins_timer = make32UnsignedInt(&app->input_buffer[37], app->little_endian);
+
+      ins_message.device_time = ((double) ins_timer) / 62500.0;
+
+      if (app->do_sync) {
+        ins_message.utime = bot_timestamp_sync(app->sync, ins_timer, utime);
+      }
+      else {
+        ins_message.utime = utime;
+      }
+      microstrain_ins_t_publish(app->lcm, "MICROSTRAIN_INS", &ins_message);
+      break;
+    }
+
   case DANG_DVEL_MAG:
     {
       if (app->message_mode != DANG_DVEL_MAG && !app->quiet)
-        printf("error: received unexpecte DANG_DVEL_MAG message\n");
+        printf("error: received unexpected DANG_DVEL_MAG message\n");
 
       //get the data we care about
       unpack32BitFloats(vals, &app->input_buffer[1], 3, app->little_endian);
@@ -438,6 +481,9 @@ void unpack_packets(app_t * app)
         break;
       case ACC_ANG_MAG_ROT:
         app->expected_segment_length = LENGTH_ACC_ANG_MAG_ROT;
+        break;
+      case ACC_STAB:
+	app->expected_segment_length = LENGTH_ACC_STAB;
         break;
       case DANG_DVEL_MAG:
         app->expected_segment_length = LENGTH_DANG_DVEL_MAG;
@@ -538,6 +584,7 @@ static void usage(const char *progname)
           "    -r, --quat                publish quaternion as well (will use more comm bandwidth) (choose EITHER -r OR -d, device doesn't support both)\n"
           "    -d, --no_delta            don't publish delta angle and delta velocity vectors normalized by dt: %f\n"
           "    -n, --no_sync             use raw timestamp, don't try to sync with device\n"
+          "    -f, --filter              output stabilitized (i.e., filtered) acceleration and magnetometer\n"
           "\n", basename, DELTA_ANG_VEL_DT);
   free(basename);
   exit(1);
@@ -559,7 +606,7 @@ int main(int argc, char **argv)
 
   char user_comm_port_name[60];
 
-  const char *optstring = "hvqc:rdn";
+  const char *optstring = "hvqc:rdfn";
 
   struct option long_opts[] = { { "help", no_argument, 0, 'h' },
       { "verbose", no_argument, 0, 'v' },
@@ -567,6 +614,7 @@ int main(int argc, char **argv)
       { "comm", required_argument, 0, 'c' },
       { "quat", no_argument, 0, 'r' },
       { "no_delta", no_argument, 0, 'd' },
+      { "filter", no_argument, 0, 'f' },
       { 0, 0, 0, 0 } };
 
   int c;
@@ -590,6 +638,9 @@ int main(int argc, char **argv)
       break;
     case 'd':
       app->message_mode = ACC_ANG_MAG;
+      break;
+    case 'f':
+      app->message_mode = ACC_STAB;
       break;
     case 'n':
       app->do_sync = false;
