@@ -661,7 +661,7 @@ int main(int argc, char **argv)
   GMainLoop * mainloop = g_main_loop_new(NULL, FALSE);
   app->lcm = bot_lcm_get_global(NULL);
   app->utime_prev = bot_timestamp_now();
-  app->sync = bot_timestamp_sync_init(62500, 68719 * 62500, 1.001);
+  app->sync = bot_timestamp_sync_init(62500, (int64_t)68719 * 62500, 1.001);
   //  app->param = bot_param_new_from_server(app->lcm, 1);
 
   app->read_buffer = bot_ringbuf_create(INPUT_BUFFER_SIZE);
