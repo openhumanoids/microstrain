@@ -468,7 +468,7 @@ void unpack_packets(app_t * app)
   while (bot_ringbuf_available(app->read_buffer) >= app->expected_segment_length) {
     switch (app->current_segment) {
     case 's':
-      bot_ringbuf_peek(app->read_buffer, 1, (char *) &app->message_start_byte);
+      bot_ringbuf_peek(app->read_buffer, 1, (uint8_t *) &app->message_start_byte);
 
       if (app->verbose)
         fprintf(stderr, "received message start byte: id=%d\n", app->message_start_byte);
@@ -496,12 +496,12 @@ void unpack_packets(app_t * app)
           fprintf(stderr, "no match for message start byte %d\n", app->message_start_byte);
         }
         //read a byte and continue if we don't have a match
-        bot_ringbuf_read(app->read_buffer, 1, (char *) &app->message_start_byte);
+        bot_ringbuf_read(app->read_buffer, 1,  (uint8_t *) &app->message_start_byte);
         app->current_segment = 's';
       }
       break;
     case 'p':
-      bot_ringbuf_read(app->read_buffer, app->expected_segment_length, (char *) app->input_buffer);
+      bot_ringbuf_read(app->read_buffer, app->expected_segment_length,  app->input_buffer);
       unsigned short transmitted_cksum = make16UnsignedInt(&app->input_buffer[app->expected_segment_length - 2],
           app->little_endian);
       unsigned short computed_cksum = cksum(app->input_buffer, app->expected_segment_length);
@@ -535,7 +535,7 @@ static gboolean serial_read_handler(GIOChannel * source, GIOCondition condition,
 {
   app_t * app = (app_t *) user;
 
-  static char middle_buffer[INPUT_BUFFER_SIZE];
+  static uint8_t middle_buffer[INPUT_BUFFER_SIZE];
 
   //get number of bytes available
   int available = 0;
