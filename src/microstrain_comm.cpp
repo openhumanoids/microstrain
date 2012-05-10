@@ -15,7 +15,7 @@
 #include <lcm/lcm.h>
 #include <lcmtypes/microstrain_ins_t.h>
 
-#include <getopt.h>
+#include <ConciseArgs/ConciseArgs.hpp>
 #define ACC_ANG_MAG 0xCB
 #define LENGTH_ACC_ANG_MAG 43
 
@@ -41,7 +41,8 @@ using namespace std;
 #define INPUT_BUFFER_SIZE 2000
 
 //self structure
-typedef struct {
+class app_t {
+public:
   //communication variables
   int comm, status;
 
@@ -66,11 +67,12 @@ typedef struct {
   BotParam * param;
 
   lcm_t * lcm;
+  string channel;
 
   bot_timestamp_sync_state * sync;
   bool do_sync;
 
-} app_t;
+};
 
 bool systemLittleEndianCheck()
 {
@@ -337,11 +339,11 @@ bool handle_message(app_t* app)
       // This libbot2 function is faulty:
       // bot_matrix_to_quat(rot, ins_message.quat);
       // Workaround (from mfallon, oct2011)
-      double ms_rpy[] = {0,0,0}; 
-      ms_rpy[0] = atan2( rot[5] , rot[8]); // roll
+      double ms_rpy[] = { 0, 0, 0 };
+      ms_rpy[0] = atan2(rot[5], rot[8]); // roll
       ms_rpy[1] = asin(-rot[2]); // pitch
-      ms_rpy[2] = atan2( rot[1] , rot[0]); // yaw      
-      bot_roll_pitch_yaw_to_quat(ms_rpy,ins_message.quat );
+      ms_rpy[2] = atan2(rot[1], rot[0]); // yaw
+      bot_roll_pitch_yaw_to_quat(ms_rpy, ins_message.quat);
 
       got_quat = true;
       //fall into standard ins message handling
@@ -374,7 +376,7 @@ bool handle_message(app_t* app)
         ins_message.utime = utime;
       }
 
-      microstrain_ins_t_publish(app->lcm, "MICROSTRAIN_INS", &ins_message);
+      microstrain_ins_t_publish(app->lcm, app->channel.c_str(), &ins_message);
       break;
     }
 
@@ -405,7 +407,7 @@ bool handle_message(app_t* app)
       else {
         ins_message.utime = utime;
       }
-      microstrain_ins_t_publish(app->lcm, "MICROSTRAIN_INS", &ins_message);
+      microstrain_ins_t_publish(app->lcm, app->channel.c_str(), &ins_message);
       break;
     }
 
@@ -438,7 +440,7 @@ bool handle_message(app_t* app)
       else {
         ins_message.utime = utime;
       }
-      microstrain_ins_t_publish(app->lcm, "MICROSTRAIN_INS", &ins_message);
+      microstrain_ins_t_publish(app->lcm, app->channel.c_str(), &ins_message);
       break;
     }
   case CONTINUOUS_MODE_COMMAND:
@@ -483,7 +485,7 @@ void unpack_packets(app_t * app)
         app->expected_segment_length = LENGTH_ACC_ANG_MAG_ROT;
         break;
       case ACC_STAB:
-	app->expected_segment_length = LENGTH_ACC_STAB;
+        app->expected_segment_length = LENGTH_ACC_STAB;
         break;
       case DANG_DVEL_MAG:
         app->expected_segment_length = LENGTH_DANG_DVEL_MAG;
@@ -496,12 +498,12 @@ void unpack_packets(app_t * app)
           fprintf(stderr, "no match for message start byte %d\n", app->message_start_byte);
         }
         //read a byte and continue if we don't have a match
-        bot_ringbuf_read(app->read_buffer, 1,  (uint8_t *) &app->message_start_byte);
+        bot_ringbuf_read(app->read_buffer, 1, (uint8_t *) &app->message_start_byte);
         app->current_segment = 's';
       }
       break;
     case 'p':
-      bot_ringbuf_read(app->read_buffer, app->expected_segment_length,  app->input_buffer);
+      bot_ringbuf_read(app->read_buffer, app->expected_segment_length, app->input_buffer);
       unsigned short transmitted_cksum = make16UnsignedInt(&app->input_buffer[app->expected_segment_length - 2],
           app->little_endian);
       unsigned short computed_cksum = cksum(app->input_buffer, app->expected_segment_length);
@@ -569,31 +571,11 @@ static gboolean serial_read_handler(GIOChannel * source, GIOCondition condition,
   return TRUE;
 }
 
-static void usage(const char *progname)
-{
-  char *basename = g_path_get_basename(progname);
-  printf(
-      "Usage: %s [options]\n"
-          "\n"
-          "Options:\n"
-          "\n"
-          "    -h, --help                Shows this help text and exits\n"
-          "    -v, --verbose\n"
-          "    -q, --quiet\n"
-          "    -c, --comm                specify comm port manuall (default will try to find attached microstrain)\n"
-          "    -r, --quat                publish quaternion as well (will use more comm bandwidth) (choose EITHER -r OR -d, device doesn't support both)\n"
-          "    -d, --no_delta            don't publish delta angle and delta velocity vectors normalized by dt: %f\n"
-          "    -n, --no_sync             use raw timestamp, don't try to sync with device\n"
-          "    -f, --filter              output stabilitized (i.e., filtered) acceleration and magnetometer\n"
-          "\n", basename, DELTA_ANG_VEL_DT);
-  free(basename);
-  exit(1);
-}
 
 int main(int argc, char **argv)
 {
 
-  app_t * app = (app_t *) calloc(1, sizeof(app_t));
+  app_t * app = new app_t();
   app->little_endian = systemLittleEndianCheck();
 
   //default settings
@@ -601,67 +583,46 @@ int main(int argc, char **argv)
   app->quiet = 0;
   app->message_mode = DANG_DVEL_MAG;
   app->do_sync = true;
+  app->channel = "MICROSTRAIN_INS";
 
   bool auto_comm = true;
 
-  char user_comm_port_name[60];
+  string user_comm_port_name;
 
-  const char *optstring = "hvqc:rdfn";
+  bool acc_ang_mag_rot = false;
+  bool acc_ang_mag = false;
+  bool acc_stab = false;
 
-  struct option long_opts[] = { { "help", no_argument, 0, 'h' },
-      { "verbose", no_argument, 0, 'v' },
-      { "quiet", no_argument, 0, 'q' },
-      { "comm", required_argument, 0, 'c' },
-      { "quat", no_argument, 0, 'r' },
-      { "no_delta", no_argument, 0, 'd' },
-      { "filter", no_argument, 0, 'f' },
-      { 0, 0, 0, 0 } };
+  ConciseArgs opt(argc, argv);
+  opt.add(app->verbose, "v", "verbose");
+  opt.add(app->quiet, "q", "quiet");
+  opt.add(user_comm_port_name, "d", "dev");
 
-  int c;
-  while ((c = getopt_long(argc, argv, optstring, long_opts, 0)) >= 0) {
-    switch (c) {
-    case 'h':
-      usage(argv[0]);
-      break;
-    case 'v':
-      app->verbose = 1;
-      break;
-    case 'q':
-      app->quiet = 1;
-      break;
-    case 'c':
-      auto_comm = false;
-      strcpy(user_comm_port_name, optarg);
-      break;
-    case 'r':
-      app->message_mode = ACC_ANG_MAG_ROT;
-      break;
-    case 'd':
-      app->message_mode = ACC_ANG_MAG;
-      break;
-    case 'f':
-      app->message_mode = ACC_STAB;
-      break;
-    case 'n':
-      app->do_sync = false;
-      break;
-    default:
-      usage(argv[0]);
-      break;
-    }
-  }
+  opt.add(acc_ang_mag_rot, "r", "quat");
+  opt.add(acc_ang_mag, "n", "no_delta");
+  opt.add(acc_stab, "f", "filter");
+  opt.add(app->channel, "c", "channel");
+
+  opt.add(app->do_sync, "s", "time_sync");
+
+  opt.parse();
+
+  if (opt.wasParsed("r"))
+    app->message_mode = ACC_ANG_MAG_ROT;
+  if (opt.wasParsed("n"))
+    app->message_mode = ACC_ANG_MAG;
+  if (opt.wasParsed("f"))
+    app->message_mode = ACC_STAB;
+  if (opt.wasParsed("dev"))
+    auto_comm = false;
 
   if (!app->quiet)
     fprintf(stderr, "Little endian = %d\n", (int) app->little_endian);
 
-  if (optind < argc - 1) {
-    usage(argv[0]);
-  }
-
   GMainLoop * mainloop = g_main_loop_new(NULL, FALSE);
   app->lcm = bot_lcm_get_global(NULL);
   app->utime_prev = bot_timestamp_now();
-  app->sync = bot_timestamp_sync_init(62500, (int64_t)68719 * 62500, 1.001);
+  app->sync = bot_timestamp_sync_init(62500, (int64_t) 68719 * 62500, 1.001);
   //  app->param = bot_param_new_from_server(app->lcm, 1);
 
   app->read_buffer = bot_ringbuf_create(INPUT_BUFFER_SIZE);
@@ -670,7 +631,7 @@ int main(int argc, char **argv)
   if (auto_comm)
     scandev(comm_port_name);
   else
-    strcpy(comm_port_name, user_comm_port_name);
+    strcpy(comm_port_name, user_comm_port_name.c_str());
 
   // comm initialization
   app->comm = OpenComPort(comm_port_name);
