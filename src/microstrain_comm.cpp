@@ -607,11 +607,11 @@ int main(int argc, char **argv)
 
   opt.parse();
 
-  if (opt.wasParsed("r"))
+  if (acc_ang_mag_rot)
     app->message_mode = ACC_ANG_MAG_ROT;
-  if (opt.wasParsed("n"))
+  if (acc_ang_mag)
     app->message_mode = ACC_ANG_MAG;
-  if (opt.wasParsed("f"))
+  if (acc_stab)
     app->message_mode = ACC_STAB;
   if (opt.wasParsed("dev"))
     auto_comm = false;
