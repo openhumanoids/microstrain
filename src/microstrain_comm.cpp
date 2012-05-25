@@ -15,7 +15,7 @@
 #include <lcm/lcm.h>
 #include <lcmtypes/microstrain_ins_t.h>
 
-#include <ConciseArgs/ConciseArgs.hpp>
+#include <ConciseArgs>
 #define ACC_ANG_MAG 0xCB
 #define LENGTH_ACC_ANG_MAG 43
 
