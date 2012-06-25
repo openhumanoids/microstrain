@@ -490,9 +490,9 @@ bool set_sampling_settings(app_t* app)
       wndb,                      // Byte  9    : gyro/accel window size
       0x11,                      // Byte  10   : magneto window size
       0x00,                      // Byte  11-12: up compensation
-      0xA0,
+      0x0A,
       0x00,                      // Byte  13-14: north compensation
-      0xA0,
+      0x0A,
       0x01,                      // Byte  15   : low magneto power
       0x00,                      // Bytes 16-20: reserved (zeros)
       0x00,
