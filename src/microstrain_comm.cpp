@@ -472,9 +472,9 @@ bool set_sampling_settings(app_t* app)
 
   // don't compute orientation if we're running at max rate
   if (app->data_rate == DATA_RATE_HIGH)
-    ocsb = 0x40;
+    ocsb = 0x02;
   else
-    ocsb = 0xC0;
+    ocsb = 0x03;
 
   wndb = static_cast<Byte>(app->filter_window_size);
 
@@ -485,8 +485,8 @@ bool set_sampling_settings(app_t* app)
       0x01,                      // Byte  4    : change params
       decu,                      // Bytes 5-6  : decimation value
       decl,
-      ocsb,                      // Bytes 7-8  : flags - orient
-      0x00,
+      0x00,                      // Bytes 7-8  : flags - orient
+      ocsb,
       wndb,                      // Byte  9    : gyro/accel window size
       0x11,                      // Byte  10   : magneto window size
       0x00,                      // Byte  11-12: up compensation
