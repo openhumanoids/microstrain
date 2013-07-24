@@ -3,6 +3,7 @@
 #include <errno.h>   // Error number definitions
 #include <assert.h>
 #include <signal.h>
+#include <unistd.h>
 #include <sys/ioctl.h>
 
 #include <iostream>
