@@ -1,7 +1,7 @@
 #include <stdio.h>
 
 #include <lcm/lcm-cpp.hpp>
-#include "lcmtypes/microstrain_comm.hpp"
+#include "lcmtypes/microstrain.hpp"
 #include "lcmtypes/bot_core.hpp"
 
 class Handler 
