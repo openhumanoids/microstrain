@@ -7,7 +7,6 @@ include(cmake/pods.cmake)
 # automatically build LCM types.  This also defines a number of CMake
 # variables, see cmake/lcmtypes.cmake for details
 include(cmake/lcmtypes.cmake)
-#lcmtypes_build()
 
 # create an executable, and make it public
 add_executable(microstrain src/microstrain_comm.cpp)

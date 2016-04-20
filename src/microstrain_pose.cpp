@@ -1,7 +1,6 @@
 #include <stdio.h>
 
 #include <lcm/lcm-cpp.hpp>
-//#include <lcmtypes/bot_core/ins_t.hpp>
 #include <lcmtypes/bot_core.hpp>
 
 class Handler 
