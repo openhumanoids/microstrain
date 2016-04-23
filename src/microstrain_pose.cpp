@@ -1,8 +1,7 @@
 #include <stdio.h>
 
 #include <lcm/lcm-cpp.hpp>
-#include "lcmtypes/microstrain.hpp"
-#include "lcmtypes/bot_core.hpp"
+#include <lcmtypes/bot_core.hpp>
 
 class Handler 
 {
@@ -15,7 +14,7 @@ class Handler
 
         void handleMessage(const lcm::ReceiveBuffer* rbuf,
                 const std::string& chan, 
-                const microstrain::ins_t* msg)
+                const bot_core::ins_t* msg)
         {
             bot_core::pose_t pose;
             pose.utime = msg->utime;

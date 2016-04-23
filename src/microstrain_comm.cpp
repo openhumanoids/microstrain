@@ -15,7 +15,7 @@
 #include <bot_core/bot_core.h>
 #include <bot_param/param_client.h>
 #include <lcm/lcm.h>
-#include <lcmtypes/microstrain_ins_t.h>
+#include <lcmtypes/bot_core_ins_t.h>
 
 #include <ConciseArgs>
 #define ACC_ANG_MAG 0xCB
@@ -515,7 +515,7 @@ bool set_sampling_settings(app_t* app)
 
 bool handle_message(app_t* app)
 {
-  microstrain_ins_t ins_message;
+  bot_core_ins_t ins_message;
   memset(&ins_message, 0, sizeof(ins_message));
   int ins_timer;
   int64_t utime = bot_timestamp_now();
@@ -580,7 +580,7 @@ bool handle_message(app_t* app)
         ins_message.utime = utime;
       }
 
-      microstrain_ins_t_publish(app->lcm, app->channel.c_str(), &ins_message);
+      bot_core_ins_t_publish(app->lcm, app->channel.c_str(), &ins_message);
       break;
     }
 
@@ -611,7 +611,7 @@ bool handle_message(app_t* app)
       else {
         ins_message.utime = utime;
       }
-      microstrain_ins_t_publish(app->lcm, app->channel.c_str(), &ins_message);
+      bot_core_ins_t_publish(app->lcm, app->channel.c_str(), &ins_message);
       break;
     }
 
@@ -644,7 +644,7 @@ bool handle_message(app_t* app)
       else {
         ins_message.utime = utime;
       }
-      microstrain_ins_t_publish(app->lcm, app->channel.c_str(), &ins_message);
+      bot_core_ins_t_publish(app->lcm, app->channel.c_str(), &ins_message);
       break;
     }
   case CONTINUOUS_MODE_COMMAND:
