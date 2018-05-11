@@ -1,0 +1,13 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>microstrain</name>
+  <version>1.0.0</version>
+  <description>LCM driver for Microstrains 25 class</description>
+  <maintainer email="mfallon@robots.ox.ac.uk">Maurice Fallon</maintainer>
+  <license>BSD</license>
+
+  <buildtool_depend>catkin</buildtool_depend>
+  <depend>bot_core</depend>
+  <depend>bot_param</depend>
+  <depend>concise_args</depend>
+</package>
